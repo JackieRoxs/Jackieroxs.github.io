@@ -8,6 +8,8 @@
         input { padding: 12px; border-radius: 5px; background: #000; color: #fff; border: 1px solid #444; width: 200px; }
         button { padding: 12px 25px; background: #ff4747; color: white; border: none; cursor: pointer; font-weight: bold; }
         #status { margin-top: 20px; color: #888; }
+        /* Keep player visible for testing, change to 0 later */
+        #player-container { margin-top: 20px; border: 1px solid #444; display: inline-block; }
     </style>
 </head>
 <body>
@@ -16,42 +18,75 @@
         <input type="text" id="username" placeholder="Username">
         <button id="syncBtn">CONNECT</button>
         <div id="status">Ready to sync...</div>
+        <div id="player-container">
+            <div id="player"></div>
+        </div>
     </div>
-    <div id="player"></div>
-    <script src="https://www.youtube.com/iframe_api"></script>
+
     <script>
-    let player;
-    let currentVideoId = ""; // Track what's currently playing
-    const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev:8080";
+        let player;
+        let playerReady = false;
+        let currentVideoId = ""; 
+        const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev:8080";
 
-    function onYouTubeIframeAPIReady() {
-        player = new YT.Player('player', { height: '0', width: '0' });
-    }
-
-    document.getElementById('syncBtn').onclick = function() {
-        const user = document.getElementById('username').value.trim();
-        if(!user) return;
-        document.getElementById('status').innerText = "Connected. Waiting for game...";
-        this.style.display = "none";
-        
-        setInterval(async () => {
-            try {
-                const res = await fetch(`${REPLIT_URL}/get_signal?username=${user}`);
-                const data = await res.json();
-                
-                // Only trigger if status is START_SONG AND it's a new request
-                if (data.status === "START_SONG" && data.videoId !== currentVideoId) {
-                    console.log("TRIGGERING VIDEO:", data.videoId);
-                    currentVideoId = data.videoId; // Set this so it doesn't loop
-                    player.loadVideoById(data.videoId);
-                    player.playVideo();
-                    document.getElementById('status').innerText = "Playing!";
-                } else if (data.status === "IDLE") {
-                    currentVideoId = ""; // Reset so we can play a song again later
+        // 1. This function is called by the YouTube API
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', {
+                height: '200',
+                width: '200',
+                videoId: 't7v_fH_0f2M', // A tiny silent/short video to "prime" the player
+                events: {
+                    'onReady': () => { 
+                        console.log("YouTube Player is Ready");
+                        playerReady = true; 
+                    },
+                    'onError': (e) => { console.error("YouTube Error:", e); }
                 }
-            } catch(e) { console.error("Sync error", e); }
-        }, 1000);
-    };
-</script>
+            });
+        }
+
+        document.getElementById('syncBtn').onclick = function() {
+            const user = document.getElementById('username').value.trim();
+            if(!user) return alert("Enter your username!");
+
+            // 2. THE UNLOCK: Play the primed video for a millisecond to satisfy browser security
+            if(playerReady) {
+                player.playVideo();
+                setTimeout(() => { player.pauseVideo(); }, 100); 
+            }
+
+            document.getElementById('status').innerText = "Status: Synced. Waiting for game...";
+            this.style.display = "none";
+            
+            // 3. Start the loop
+            setInterval(async () => {
+                if (!playerReady) return; // Don't fetch if player isn't born yet
+
+                try {
+                    const res = await fetch(`${REPLIT_URL}/get_signal?username=${user}`);
+                    const data = await res.json();
+                    
+                    if (data.status === "START_SONG") {
+                        if (data.videoId !== currentVideoId) {
+                            console.log("PLAYING SONG:", data.videoId);
+                            currentVideoId = data.videoId;
+                            
+                            // 4. Force load and play
+                            player.loadVideoById(data.videoId);
+                            player.playVideo();
+                            document.getElementById('status').innerText = "Status: Playing " + data.videoId;
+                        }
+                    } else {
+                        // If it returns IDLE, reset currentVideoId so we can play again later
+                        currentVideoId = ""; 
+                    }
+                } catch(e) { 
+                    console.error("Network Sync Error:", e);
+                    document.getElementById('status').innerText = "Status: Server Connection Error";
+                }
+            }, 1000);
+        };
+    </script>
+    <script src="https://www.youtube.com/iframe_api"></script>
 </body>
 </html>
