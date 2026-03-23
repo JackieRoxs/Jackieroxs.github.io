@@ -1,73 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
-   <head>
-      <meta charset="UTF-8">
-      <title>Polytoria Audio Link</title>
-      <style>
-         body { background: #111; color: #eee; font-family: 'Segoe UI', sans-serif; text-align: center; padding-top: 100px; }
-         .box { border: 2px solid #333; display: inline-block; padding: 30px; border-radius: 15px; background: #1a1a1a; }
-         input { padding: 12px; border-radius: 5px; border: 1px solid #444; background: #000; color: #fff; width: 250px; margin-bottom: 15px; }
-         button { padding: 12px 25px; background: #ff4747; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-         button:hover { background: #ff6666; }
-         #status { margin-top: 20px; font-weight: bold; color: #888; }
-         .ready { color: #00ff88 !important; }
-      </style>
-   </head>
-   <body>
-      <div class="box">
-         <h1>Audio Sync Portal</h1>
-         <p>Sync your game to this tab to play custom audio.</p>
-         <input type="text" id="username" placeholder="Your Polytoria Username"><br>
-         <button id="syncBtn">CONNECT TO GAME</button>
-         <div id="status">Status: Disconnected</div>
-      </div>
-      <div id="player"></div>
-      <script src="https://www.youtube.com/iframe_api"></script>
-      <script>
-         let player;
-         // Defined globally so the setInterval can see it
-         const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev";
-         
-         function onYouTubeIframeAPIReady() {
-             player = new YT.Player('player', {
-                 height: '0', width: '0',
-                 playerVars: { 'autoplay': 1, 'controls': 0 },
-                 events: { 'onReady': () => console.log("YT API Ready") }
-             });
-         }
-         
-         document.getElementById('syncBtn').onclick = function() {
-             const user = document.getElementById('username').value.trim();
-             if (!user) return alert("Enter your username first!");
-         
-             document.getElementById('status').innerText = "Status: Synced. Waiting for game...";
-             document.getElementById('status').className = "ready";
-             this.style.display = "none";
-         
-             // Start Polling the Replit every 1 second
-             setInterval(async () => {
-                 try {
-                     // Fixed: Using REPLIT_URL and query parameter
-                     const res = await fetch(`${REPLIT_URL}/get_signal?username=${encodeURIComponent(user)}`);
-                     
-                     if (!res.ok) {
-                        throw new Error(`HTTP error! status: ${res.status}`);
-                     }
-                     
-                     const data = await res.json();
-                     if (data.status === "START_SONG") {
-                        console.log("Signal received! Playing video:", data.videoId);
+<html>
+<head>
+    <title>Polytoria Audio Sync</title>
+    <style>
+        body { background: #111; color: #eee; font-family: sans-serif; text-align: center; padding-top: 100px; }
+        .box { border: 2px solid #333; display: inline-block; padding: 30px; border-radius: 15px; background: #1a1a1a; }
+        input { padding: 12px; border-radius: 5px; background: #000; color: #fff; border: 1px solid #444; width: 200px; }
+        button { padding: 12px 25px; background: #ff4747; color: white; border: none; cursor: pointer; font-weight: bold; }
+        #status { margin-top: 20px; color: #888; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h1>Audio Portal</h1>
+        <input type="text" id="username" placeholder="Username">
+        <button id="syncBtn">CONNECT</button>
+        <div id="status">Ready to sync...</div>
+    </div>
+    <div id="player"></div>
+    <script src="https://www.youtube.com/iframe_api"></script>
+    <script>
+        let player;
+        const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev:8080";
+
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('player', { height: '0', width: '0' });
+        }
+
+        document.getElementById('syncBtn').onclick = function() {
+            const user = document.getElementById('username').value.trim();
+            if(!user) return;
+            document.getElementById('status').innerText = "Connected. Waiting for game...";
+            
+            setInterval(async () => {
+                try {
+                    const res = await fetch(`${REPLIT_URL}/get_signal?username=${user}`);
+                    const data = await res.json();
+                    if (data.status === "START_SONG") {
                         player.loadVideoById(data.videoId);
                         player.playVideo();
-                        document.getElementById('status').innerText = "Status: Playing Audio";
-                     }
-                 } catch(e) {
-                     console.error("Fetch error:", e);
-                     document.getElementById('status').innerText = "Status: Replit Offline?";
-                     document.getElementById('status').className = "";
-                 }
-             }, 1000);
-         };
-      </script>
-   </body>
+                        document.getElementById('status').innerText = "Playing!";
+                    }
+                } catch(e) { console.error("Sync error", e); }
+            }, 1000);
+        };
+    </script>
+</body>
 </html>
