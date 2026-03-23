@@ -20,30 +20,38 @@
     <div id="player"></div>
     <script src="https://www.youtube.com/iframe_api"></script>
     <script>
-        let player;
-        const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev:8080";
+    let player;
+    let currentVideoId = ""; // Track what's currently playing
+    const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev:8080";
 
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('player', { height: '0', width: '0' });
-        }
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', { height: '0', width: '0' });
+    }
 
-        document.getElementById('syncBtn').onclick = function() {
-            const user = document.getElementById('username').value.trim();
-            if(!user) return;
-            document.getElementById('status').innerText = "Connected. Waiting for game...";
-            
-            setInterval(async () => {
-                try {
-                    const res = await fetch(`${REPLIT_URL}/get_signal?username=${user}`);
-                    const data = await res.json();
-                    if (data.status === "START_SONG") {
-                        player.loadVideoById(data.videoId);
-                        player.playVideo();
-                        document.getElementById('status').innerText = "Playing!";
-                    }
-                } catch(e) { console.error("Sync error", e); }
-            }, 1000);
-        };
-    </script>
+    document.getElementById('syncBtn').onclick = function() {
+        const user = document.getElementById('username').value.trim();
+        if(!user) return;
+        document.getElementById('status').innerText = "Connected. Waiting for game...";
+        this.style.display = "none";
+        
+        setInterval(async () => {
+            try {
+                const res = await fetch(`${REPLIT_URL}/get_signal?username=${user}`);
+                const data = await res.json();
+                
+                // Only trigger if status is START_SONG AND it's a new request
+                if (data.status === "START_SONG" && data.videoId !== currentVideoId) {
+                    console.log("TRIGGERING VIDEO:", data.videoId);
+                    currentVideoId = data.videoId; // Set this so it doesn't loop
+                    player.loadVideoById(data.videoId);
+                    player.playVideo();
+                    document.getElementById('status').innerText = "Playing!";
+                } else if (data.status === "IDLE") {
+                    currentVideoId = ""; // Reset so we can play a song again later
+                }
+            } catch(e) { console.error("Sync error", e); }
+        }, 1000);
+    };
+</script>
 </body>
 </html>
