@@ -25,6 +25,7 @@
       <script src="https://www.youtube.com/iframe_api"></script>
       <script>
          let player;
+         // Defined globally so the setInterval can see it
          const REPLIT_URL = "https://6e8c99b5-5491-4d77-8e94-273908bbe395-00-3qqh3c3lmo5c8.kirk.replit.dev";
          
          function onYouTubeIframeAPIReady() {
@@ -43,26 +44,28 @@
              document.getElementById('status').className = "ready";
              this.style.display = "none";
          
-             // Start Polling the Replit
+             // Start Polling the Replit every 1 second
              setInterval(async () => {
-                 // ... inside your setInterval loop ...
-         try {
-         // Swapped to query parameter: ?username=
-         const res = await fetch(`${REPLIT}/get_signal?username=${user}`);
-         
-         if (!res.ok) {
-         throw new Error(`HTTP error! status: ${res.status}`);
-         }
-         
-         const data = await res.json();
-         if (data.status === "START_SONG") {
-         player.loadVideoById(data.videoId);
-         player.playVideo();
-         }
-         } catch(e) {
-         console.error("Fetch error:", e);
-         // If you see this in F12 console, the Replit is likely asleep
-         }
+                 try {
+                     // Fixed: Using REPLIT_URL and query parameter
+                     const res = await fetch(`${REPLIT_URL}/get_signal?username=${encodeURIComponent(user)}`);
+                     
+                     if (!res.ok) {
+                        throw new Error(`HTTP error! status: ${res.status}`);
+                     }
+                     
+                     const data = await res.json();
+                     if (data.status === "START_SONG") {
+                        console.log("Signal received! Playing video:", data.videoId);
+                        player.loadVideoById(data.videoId);
+                        player.playVideo();
+                        document.getElementById('status').innerText = "Status: Playing Audio";
+                     }
+                 } catch(e) {
+                     console.error("Fetch error:", e);
+                     document.getElementById('status').innerText = "Status: Replit Offline?";
+                     document.getElementById('status').className = "";
+                 }
              }, 1000);
          };
       </script>
